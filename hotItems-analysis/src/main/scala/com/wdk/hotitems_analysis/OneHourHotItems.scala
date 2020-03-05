@@ -2,9 +2,11 @@ package com.wdk.hotitems_analysis
 
 import java.sql.Timestamp
 import java.time.format.DateTimeFormatter
+import java.util.Properties
 import java.util.concurrent.TimeUnit
 
 import org.apache.flink.api.common.functions.AggregateFunction
+import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder
@@ -14,7 +16,9 @@ import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.function.WindowFunction
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer
 import org.apache.flink.util.Collector
+import org.apache.kafka.clients.consumer.ConsumerConfig
 
 /**
   * @Description:
@@ -25,16 +29,26 @@ import org.apache.flink.util.Collector
   **/
 object OneHourHotItems {
 
+
+
     def main(args: Array[String]): Unit = {
         //创建执行环境
         val env = StreamExecutionEnvironment.getExecutionEnvironment
         env.setParallelism(1)   //设置并行度
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)   //设置时间语义
 
-        //Source 读取数据
-        val filePath = "D:\\files\\program\\idea\\user-behavior-analysis\\hotItems-analysis\\src\\main\\resources\\UserBehavior.csv";
+        //从kafka消费数据
+        val properties = new Properties()
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,"master:9092,slave1:9092,slave2:9092")
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG,"hotItemGroup")
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,"org.apache.kafka.common.serialization.StringDeserializer")
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,"org.apache.kafka.common.serialization.StringDeserializer")
+        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,"latest")
 
-        val dataStream = env.readTextFile(filePath)
+        //声明consumer
+        val sourceKafka = new FlinkKafkaConsumer[String]("hotitems",new SimpleStringSchema(),properties)
+
+        val dataStream = env.addSource(sourceKafka)
                 .map(line => {
                     val attr = line.split(",")
                     //转换类型
@@ -50,9 +64,7 @@ object OneHourHotItems {
                 .keyBy(_.windowEnd)     //根据窗口分组
                 .process(new TopNItems(3))  //统计topN
 
-
         processedStream.print()
-
 
         env.execute("hot items...")
     }
@@ -139,8 +151,6 @@ class TopNItems(topSize: Int) extends KeyedProcessFunction[Long,OneHourItemViewC
         out.collect(result.toString())
     }
 }
-
-
 
 case class OneHourUserBehavior( userId: Long, itemId: Long, categoryId: Int, behavior: String, timestamp: Long )
 
