@@ -29,8 +29,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
   **/
 object OneHourHotItems {
 
-
-
     def main(args: Array[String]): Unit = {
         //创建执行环境
         val env = StreamExecutionEnvironment.getExecutionEnvironment
