@@ -32,6 +32,8 @@ object UniqueVisitorWithBloom {
 
         val resources = getClass.getResource("/UserBehavior.csv")
 
+        println("start-------------------> :"+new Timestamp(System.currentTimeMillis()))
+
         val dataStream = env.readTextFile(resources.getFile)
                 .map(line => {
                     val attr = line.split(",")
@@ -51,6 +53,8 @@ object UniqueVisitorWithBloom {
         uvCounts.print("UV with bloom>")
 
         env.execute("UV job with bloom")
+
+        println("end-------------------> :"+new Timestamp(System.currentTimeMillis()))
     }
 
 }
@@ -58,6 +62,8 @@ object UniqueVisitorWithBloom {
 
 //自定义窗口触发器
 class UvTrigger() extends Trigger[(String,Long),TimeWindow] {
+    var idSet :Set[Long]= Set[Long]()
+
     override def onEventTime(time: Long, window: TimeWindow, ctx: Trigger.TriggerContext) = TriggerResult.CONTINUE
 
     override def onProcessingTime(time: Long, window: TimeWindow, ctx: Trigger.TriggerContext) = TriggerResult.CONTINUE
@@ -118,9 +124,9 @@ class  UvCountWindowFucntion extends ProcessWindowFunction[(String,Long),UvCount
             counts += 1
             jedis.setbit(sortKey,offset,true)
             jedis.hset("counts",sortKey,counts.toString)
-            out.collect(UvCountWithBloom(sortKey,counts))
+//            out.collect(UvCountWithBloom(sortKey,counts))
         }else{
-            out.collect(UvCountWithBloom(sortKey,counts))
+//            out.collect(UvCountWithBloom(sortKey,counts))
         }
 
     }

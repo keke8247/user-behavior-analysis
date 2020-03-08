@@ -57,7 +57,7 @@ object NetworkFlowAnalysis {
         val processDs = dataStream.filter(!_.url.contains("favicon.ico"))
                 .keyBy(_.url)
                 .timeWindow(Time.minutes(10),Time.seconds(5))
-                .allowedLateness(Time.minutes(1))   //到达watermark之后的数据 放到侧输出流
+                .allowedLateness(Time.minutes(1))   //allowedLateness 允许最大迟到时间, 水位线为延迟1秒 表示过了水位线之后 窗口关闭 这时候在 watermark < end-of-window + allowedLateness的数据到达 会再次触发窗口统计
                 .aggregate(new UrlCountAgg(), new UrlWindowResult())
                 .keyBy(_.windowEnd) //根据窗口结束时间分组
                 .process(new TopNUrl(5)) //窗口周期内的数据排序输出top5
