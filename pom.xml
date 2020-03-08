@@ -11,6 +11,7 @@
     <modules>
         <module>hotItems-analysis</module>
         <module>network-flow-analysis</module>
+        <module>market-analysis</module>
     </modules>
 
     <properties>

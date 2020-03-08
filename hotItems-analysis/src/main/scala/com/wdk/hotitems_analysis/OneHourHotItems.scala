@@ -58,7 +58,7 @@ object OneHourHotItems {
                 .filter(_.behavior=="pv")   //只统计点击 热门商品
                 .keyBy(_.itemId)    //根据ItemId分组
                 .timeWindow(Time.hours(1),Time.minutes(5))  //开窗
-                .aggregate(new CountAggregate(),new AggWindowFunction())    //聚合
+                .aggregate(new CountAggregate(),new AggWindowFunction())    //预聚合
                 .keyBy(_.windowEnd)     //根据窗口分组
                 .process(new TopNItems(3))  //统计topN
 
