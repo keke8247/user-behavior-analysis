@@ -39,7 +39,7 @@ object LoginFailDetectWithCep {
 
         //定义两秒内连续登录失败Pattern
         val continuousLoginFailPattern = Pattern.begin[LoginEvent]("begin").where(_.eventType=="fail")
-                .next("next").where(_.eventType=="fail").within(Time.seconds(2))
+                .next("next").where(_.eventType=="fail").within(Time.seconds(2)).times(2,4)
 
         //使用pattern
         val patternStream = CEP.pattern(inputStream,continuousLoginFailPattern)
