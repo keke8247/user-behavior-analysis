@@ -1,7 +1,6 @@
 package com.wdk.hotitems_analysis
 
 import java.sql.Timestamp
-import java.time.format.DateTimeFormatter
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 
@@ -9,7 +8,6 @@ import org.apache.flink.api.common.functions.AggregateFunction
 import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.scala._
@@ -32,7 +30,7 @@ object OneHourHotItems {
     def main(args: Array[String]): Unit = {
         //创建执行环境
         val env = StreamExecutionEnvironment.getExecutionEnvironment
-        env.setParallelism(1)   //设置并行度
+        env.setParallelism(4)   //设置并行度
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)   //设置时间语义
 
         //从kafka消费数据
@@ -58,7 +56,8 @@ object OneHourHotItems {
                 .filter(_.behavior=="pv")   //只统计点击 热门商品
                 .keyBy(_.itemId)    //根据ItemId分组
                 .timeWindow(Time.hours(1),Time.minutes(5))  //开窗
-                .aggregate(new CountAggregate(),new AggWindowFunction())    //预聚合
+                // 使用aggregate 采用增量聚合函数.来一条聚合一条.
+                .aggregate(new CountAggregate(),new AggWindowFunction())    //聚合
                 .keyBy(_.windowEnd)     //根据窗口分组
                 .process(new TopNItems(3))  //统计topN
 
@@ -69,7 +68,7 @@ object OneHourHotItems {
 
 }
 
-//预聚合
+//聚合 定义聚合规则 来一条数据 计数器+1
 class CountAggregate() extends AggregateFunction[OneHourUserBehavior,Long,Long] {
 
     //累加 来一条数据 累加器+1
@@ -91,6 +90,7 @@ class CountAggregate() extends AggregateFunction[OneHourUserBehavior,Long,Long] 
     }
 }
 
+//WindowFunction 定义窗口函数输出数据结构
 class AggWindowFunction() extends WindowFunction[Long,OneHourItemViewCount,Long,TimeWindow] {
     override def apply(itemId: Long, window: TimeWindow, input: Iterable[Long], out: Collector[OneHourItemViewCount]): Unit = {
         //把预聚合得到的累加器结果 和 itemId  windowEnd 组装 使用out.collect 返回
